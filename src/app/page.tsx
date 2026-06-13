@@ -163,7 +163,7 @@ export default function HomePage() {
                     </h2>
 
                     <Link
-                    href="/dashboard/announcements"
+                    href="/announcements"
                     className="text-blue-700 font-semibold">
                         View All
                     </Link>
