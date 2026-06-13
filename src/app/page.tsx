@@ -64,11 +64,11 @@ export default function HomePage() {
                                     </div>
                         </div>
 
-                        <div className="hidden md:flex items-center gap-8 text-lg">
-                            <Link href="/">Home</Link>
-                            <Link href="/about">About</Link>
-                            <Link href="/contact">Contact</Link>
-                            <Link href="/check-result">Check Result</Link>
+                        <div className="flex flex-wrap items-center gap-4 sm:gap-6 md:gap-8 text-base md:text-lg justify-center md:justify-start">
+                            <Link href="/"className="hover:text-blue-400 transition-colors">Home</Link>
+                            <Link href="/about" className="hover:text-blue-400 transition-colors">About</Link>
+                            <Link href="/contact" className="hover:text-blue-400 transition-colors">Contact</Link>
+                            <Link href="/check-result" className="bg-blue-600 hover:bg-blue-700 px-4 py-1.5 rounded-lg text-white text-sm md:text-base font-semibold transition-all shadow-md ml-0 sm:ml-2">Check Result</Link>
                             
 
                             <div className="relative inline-block text-left">
