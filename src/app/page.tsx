@@ -38,7 +38,7 @@ export default function HomePage() {
                 <div className="absolute inset-0 bg-black/70"></div>
 
                 <div className="relative z-10 flex flex-col h-full">
-                    <nav className="flex items-center justify-between px-6 md:px-12 py-5 text-white">
+                    <nav className="flex flex-col md:flex-row items-center justify-between gap-4 px-6 md:px-12 py-5 text-white w-full">
                         <div className="flex items-center gap-3">
                             <Image
                             src="/images/logo.png"
@@ -53,7 +53,7 @@ export default function HomePage() {
                                 GOD's Power International High School
                             </h1>
 
-                            <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3 mt-0.5">
+                            <div className="flex flex-col items-center md:items-start gap-1 mt-1 text-center md:text-left">
                                 <span className="text-[10px] md:text-xs text-amber-400 font-bold tracking-wider uppercase">
                                     Govt. Approved for WAEC, NECO, NABTEB & JAMB CBT
                                     </span>
@@ -64,7 +64,7 @@ export default function HomePage() {
                                     </div>
                         </div>
 
-                        <div className="flex flex-wrap items-center gap-4 sm:gap-6 md:gap-8 text-base md:text-lg justify-center md:justify-start">
+                        <div className="flex flex-wrap items-center justify-center md:justify-end gap-3 sm:gap-6 text-sm md:text-base w-full md:w-auto">
                             <Link href="/"className="hover:text-blue-400 transition-colors">Home</Link>
                             <Link href="/about" className="hover:text-blue-400 transition-colors">About</Link>
                             <Link href="/contact" className="hover:text-blue-400 transition-colors">Contact</Link>
