@@ -110,6 +110,7 @@ export default function AddStudentPage() {
                     className="w-full border rounded-lg p-3 text-black outline-none focus:ring-2 focus:ring-blue-500"
                     >
                     <option value="">Select Department</option>
+                    <option value="None">None (Junior Section)</option>
                     <option value="Science">Science</option>
                     <option value="Arts">Arts</option>
                     <option value="Commercial">Commercial</option>
