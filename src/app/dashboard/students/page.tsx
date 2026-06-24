@@ -130,6 +130,8 @@ export default function StudentsPage() {
     /* DELETE STUDENT */
 
     const handleDelete = async (id: string) => {
+        console.log("--- DEBUGGING DELETE ID ---");
+        console.log("The ID being passed is:", id);
     const confirmDelete = confirm("Delete this student?");
     if (!confirmDelete) return;
     
@@ -139,22 +141,19 @@ export default function StudentsPage() {
                 headers: {
                     "Content-Type": "application/json",
                 },
-
-                body: JSON.stringify({
-                    id,
-            }),
-        }
-            );
+            });
+        
 
             const data = await response.json();
-            alert(data.message);
-            setStudents(
-                students.filter(
-                    (student) => student._id !== id
-                )
-            );
+
+            if (response.ok) {
+            alert(data.message || "Student deleted successfully");
+            setStudents((prev) => prev.filter((student) => student._id !== id));
+            } else {
+                alert(data.message || "Failed to delete student");
+            }
         } catch (error) {
-            console.log(error);
+            console.error(error);
             alert(
                 "Failed to delete student"
             );

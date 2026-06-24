@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import connectDB from "@/lib/db";
-import Student from "@/models/Result";
+import Student from "@/models/Student";
 
 // GET SINGLE STUDENT
 export async function GET(
@@ -106,21 +106,20 @@ export async function PUT(
         // DELETE STUDENT
         export async function DELETE(
             req: Request,
-            { params }: { params: Promise<{id: string}>}
-            
-        ) {
+            { params }: { params: Promise<{id: string}>}) {
             try {
                 const { id } = await params;
                 await connectDB();
-                await Student.findByIdAndDelete(
-                    id
-                );
+                const deletedStudent = await Student.findByIdAndDelete(id);
 
+                if (!deletedStudent) {
                 return NextResponse.json(
-                    {
-                        message: "Student deleted successfully",
-                    }
+                    { message: "Student ID not found in database"},
+                    { status: 404 }
                 );
+            }
+
+            return NextResponse.json({ message: "Student deleted successfully" });
             } catch (error) {
                 console.log("DELETE ERROR:", Error);
 
