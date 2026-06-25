@@ -72,8 +72,11 @@ const handleUpdate = async (
 
         const data = await response.json();
         alert(data.message);
-        router.push("/dashboard/students");
+
+        if (response.ok) {
         router.refresh();
+        router.push("/dashboard/students");
+        }
     } catch (error) {
         console.log(error);
         alert("Failed to update student");
@@ -152,6 +155,7 @@ return (
                 className="w-full border p-3 rounded text-black"
                 >
                 <option value="">Select Stream</option>
+                <option value="General">None (Junior Section)</option>
                 <option value="Science">Science</option>
                 <option value="Arts">Arts</option>
                 <option value="Commercial">Commercial</option>

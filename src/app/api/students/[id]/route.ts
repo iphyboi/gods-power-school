@@ -61,7 +61,7 @@ export async function PUT(
         const updatedStudent = await Student.findByIdAndUpdate(
             studentId,
             {
-                name: body.name,
+                fullName: body.name,
                 class: body.class,
                 gender: body.gender,
                 amountPaid: body.amountPaid,
