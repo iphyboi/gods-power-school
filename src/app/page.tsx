@@ -38,74 +38,7 @@ export default function HomePage() {
                 <div className="absolute inset-0 bg-black/70"></div>
 
                 <div className="relative z-10 flex flex-col h-full">
-                    <nav className="flex flex-col md:flex-row items-center justify-between gap-4 px-6 md:px-12 py-5 text-white w-full">
-                        <div className="flex items-center gap-3">
-                            <Image
-                            src="/images/logo.png"
-                            alt="School Logo"
-                            width={50}
-                            height={50}
-                            style={{height: "auto" }}
-                            className="rounded-full"
-                            />
-
-                            <h1 className="text-xl md:text-2xl font-bold">
-                                GOD's Power International High School
-                            </h1>
-
-                            <div className="flex flex-col items-center md:items-start gap-1 mt-1 text-center md:text-left">
-                                <span className="text-[10px] md:text-xs text-amber-400 font-bold tracking-wider uppercase">
-                                    Govt. Approved for WAEC, NECO, NABTEB & JAMB CBT
-                                    </span>
-                                <span className="hidden sm:inline text-gray-400 text-xs">|</span>
-                                <span className="text-[10px] md:text-xs text-blue-300 italic font-medium tracking-wide">
-                                    "In God We Trust"
-                                    </span>
-                                    </div>
-                        </div>
-
-                        <div className="flex flex-wrap items-center justify-center md:justify-end gap-3 sm:gap-6 text-sm md:text-base w-full md:w-auto">
-                            <Link href="/"className="hover:text-blue-400 transition-colors">Home</Link>
-                            <Link href="/about" className="hover:text-blue-400 transition-colors">About</Link>
-                            <Link href="/contact" className="hover:text-blue-400 transition-colors">Contact</Link>
-                            <Link href="/check-result" className="bg-blue-600 hover:bg-blue-700 px-4 py-1.5 rounded-lg text-white text-sm md:text-base font-semibold transition-all shadow-md ml-0 sm:ml-2">Check Result</Link>
-                            
-
-                            <div className="relative inline-block text-left">
-                                <button
-                                onClick={() => setIsDropdownOpen(!isDropdownOpen)} 
-                                className="hover:text-blue-200 transition-colors flex items-center gap-1 focus:outline-none">
-                                    others <span className="text-xs ml-1">v</span>
-                                </button>
-
-                                {isDropdownOpen && (
-                                    <>
-                                <div className="fixed inset-0 z-40 bg-transparent cursor-default"
-                                onClick={() => setIsDropdownOpen(false)}
-                                />
-                                <div className="absolute left-0 mt-2 w-56 bg-white rounded-xl shadow-2xl border border-gray-100 z-50 py-2 origin-top-left">
-                                    <Link    
-                                    href="/upload-payment"
-                                    onClick={() => setIsDropdownOpen(false)}
-                                    className="block px-4 py-3 text-sm text-gray-800 hover:bg-gray-50 hover:text-blue-600 rounded-xl font-medium transition-colors"
-                                        >
-                                            Upload payment proof
-                                    </Link>
-
-                                    <Link
-                                    href="/attendance"
-                                    onClick={() => setIsDropdownOpen(false)}
-                                    className="block px-4 py-3 text-sm text-gray-800 hover:bg-gray-50 hover:text-blue-600 transition border-t border-gray-100"
-                                    >
-                                        Track Attendance
-                                    </Link>
-                                </div>
-                                </>
-                                )}
-                            </div>
-                        </div>
-                    </nav>
-
+                   
                     <div className="flex-1 flex items-center justify-center text-center px-6">
                         <div className="max-w-4xl text-white">
                             <h1 className="text-4xl md:text-7xl font-bold leading-tight mb-6">

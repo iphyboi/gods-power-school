@@ -34,7 +34,7 @@ export default function PublicAttendancePage() {
 
     return (
         <div className="min-h-screen w-full bg-cover bg-center bg-no-repeat bg-fixed relative py-12 px-4 flex flex-col items-center justify-center"
-        style={{ backgroundImage: "url('/images/student-3.jpg')"}}
+        style={{ backgroundImage: "url('/images/photo-2.jpg')"}}
         >
             {/* dark tint overlay layer*/}
             <div className="absolute inset-0 bg-black/70 pointer-events-none">

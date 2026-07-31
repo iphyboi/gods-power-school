@@ -75,7 +75,7 @@ export default function AdminAttendancePage() {
                     Attendance control Panel
                 </h1>
                 <p className="text-xs text-gray-400 mt-1">
-                    Log and Upload formal register ntries directly into the database
+                    Log and Upload formal register entries directly into the database
                 </p>
             </div>
 

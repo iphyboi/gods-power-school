@@ -7,6 +7,7 @@ export default function DashboardLayout({
     children: React.ReactNode;
 }) {
     return (
+        
         <div className="flex bg-transparent">
             <Sidebar />
             {/* MAIN CONTENT*/}
