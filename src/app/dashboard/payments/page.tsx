@@ -1,411 +1,1111 @@
 "use client";
-import { useEffect, useState } from "react";
+
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 interface Payment {
-    _id: string;
-    studentId: {
-        name: string;
-        class: string;
-    };
-
-    totalFee: number;
-    amountPaid: number;
-    balance: number;
-    status: string;
-    paymentMethod: string;
-    session: string;
-    term: string;
+  _id: string;
+  studentId?: {
+    _id?: string;
+    fullName?: string;
+    name?: string;
+    class?: string;
+  };
+  totalFee: number;
+  amountPaid: number;
+  balance: number;
+  status: string;
+  paymentMethod: string;
+  session: string;
+  term: string;
+  receiptUrl?: string;
 }
 
 interface Student {
-    _id: string;
-    fullName: string;
-    class?: string;
+  _id: string;
+  fullName: string;
+  class?: string;
 }
 
 export default function PaymentsPage() {
-    const [activeTab, setActiveTab] = useState<"view" | "add">("view");
-    const [payments, setPayments] = useState<Payment[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [session, setSession] = useState("2025/2026");
-    const [term, setTerm] = useState("First Term");
-    const [file, setFile] = useState<File | null>(null);
+  const router = useRouter();
 
-    //Form handling states for creating new records
-    const [students, setStudents] = useState<Student[]>([]);
-    const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
-    const [formTotalFee, setFormTotalFee] = useState("");
-    const [formAmountPaid, setFormAmountPaid] = useState("");
-    const [formPaymentMethod, setFormPaymentMethod] = useState("Cash");
-    const router = useRouter();
-    
+  const [activeTab, setActiveTab] =
+    useState<"view" | "add">("view");
 
-        const fetchPayments = async () => {
-            try {
-                setLoading(true);
-                const res = await fetch("/api/payments");
-                const data = await res.json();
-                setPayments(data);
-            } catch (err) {
-                console.log(err);
-            } finally {
-                setLoading(false);
-            }
-        };
+  const [payments, setPayments] = useState<Payment[]>([]);
+  const [students, setStudents] = useState<Student[]>([]);
 
-        const fetchStudents = async () => {
-        try {
-        const res = await fetch("/api/students");
-        if (res.ok) {
-        const data = await res.json();
-        const studentArray = Array.isArray(data) ? data : data.students || [];
-        setStudents(studentArray);
-        }
-    } catch (err) {
-        console.log("Error loading students:", err);
-        setStudents([]);
+  const [loading, setLoading] = useState(true);
+  const [studentsLoading, setStudentsLoading] = useState(true);
+  const [updating, setUpdating] = useState(false);
+
+  const [session, setSession] = useState("2026/2027");
+  const [term, setTerm] = useState("First Term");
+
+  const [search, setSearch] = useState("");
+
+  const [selectedStudent, setSelectedStudent] =
+    useState<Student | null>(null);
+
+  const [formTotalFee, setFormTotalFee] = useState("");
+  const [formAmountPaid, setFormAmountPaid] = useState("");
+  const [formPaymentMethod, setFormPaymentMethod] =
+    useState("Cash");
+
+  // =========================
+  // MONEY FORMATTER
+  // =========================
+
+  const money = (amount: number) => {
+    return new Intl.NumberFormat("en-NG", {
+      style: "currency",
+      currency: "NGN",
+      maximumFractionDigits: 0,
+    }).format(amount || 0);
+  };
+
+  // =========================
+  // FETCH PAYMENTS
+  // =========================
+
+  const fetchPayments = async () => {
+    try {
+      setLoading(true);
+
+      const response = await fetch("/api/payments");
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch payments");
+      }
+
+      const data = await response.json();
+
+      const paymentArray = Array.isArray(data)
+        ? data
+        : data.payments || [];
+
+      setPayments(paymentArray);
+    } catch (error) {
+      console.error("FETCH PAYMENTS ERROR:", error);
+      setPayments([]);
+    } finally {
+      setLoading(false);
     }
-};
+  };
 
-useEffect(() => {
+  // =========================
+  // FETCH STUDENTS
+  // =========================
+
+  const fetchStudents = async () => {
+    try {
+      setStudentsLoading(true);
+
+      const response = await fetch("/api/students");
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch students");
+      }
+
+      const data = await response.json();
+
+      const studentArray = Array.isArray(data)
+        ? data
+        : data.students || [];
+
+      setStudents(studentArray);
+    } catch (error) {
+      console.error("FETCH STUDENTS ERROR:", error);
+      setStudents([]);
+    } finally {
+      setStudentsLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchPayments();
     fetchStudents();
-}, [activeTab]);
+  }, []);
 
-const handleAddNewPayment = async (e: React.FormEvent) => {
+  // =========================
+  // FILTER PAYMENTS
+  // =========================
+
+  const filteredPayments = useMemo(() => {
+    const searchTerm = search.toLowerCase().trim();
+
+    return payments.filter((payment) => {
+      const studentName =
+        payment.studentId?.fullName ||
+        payment.studentId?.name ||
+        "";
+
+      const studentClass =
+        payment.studentId?.class || "";
+
+      const matchesSearch =
+        searchTerm === "" ||
+        studentName
+          .toLowerCase()
+          .includes(searchTerm) ||
+        studentClass
+          .toLowerCase()
+          .includes(searchTerm) ||
+        payment.status
+          .toLowerCase()
+          .includes(searchTerm) ||
+        payment.paymentMethod
+          .toLowerCase()
+          .includes(searchTerm);
+
+      const matchesSession =
+        payment.session === session;
+
+      const matchesTerm =
+        payment.term === term;
+
+      return (
+        matchesSearch &&
+        matchesSession &&
+        matchesTerm
+      );
+    });
+  }, [payments, search, session, term]);
+
+  // =========================
+  // PAYMENT SUMMARY
+  // =========================
+
+  const summary = useMemo(() => {
+    return filteredPayments.reduce(
+      (acc, payment) => {
+        acc.totalFee += Number(
+          payment.totalFee || 0
+        );
+
+        acc.amountPaid += Number(
+          payment.amountPaid || 0
+        );
+
+        acc.balance += Number(
+          payment.balance || 0
+        );
+
+        if (
+          payment.status === "Paid" ||
+          payment.status === "Fully paid"
+        ) {
+          acc.paidCount += 1;
+        }
+
+        if (
+          payment.status === "Part Payment"
+        ) {
+          acc.partPaymentCount += 1;
+        }
+
+        return acc;
+      },
+      {
+        totalFee: 0,
+        amountPaid: 0,
+        balance: 0,
+        paidCount: 0,
+        partPaymentCount: 0,
+      }
+    );
+  }, [filteredPayments]);
+
+  // =========================
+  // ADD PAYMENT
+  // =========================
+
+  const handleAddNewPayment = async (
+    e: React.FormEvent
+  ) => {
     e.preventDefault();
-    if (!selectedStudent) return;
+
+    if (!selectedStudent) {
+      alert("Please select a student.");
+      return;
+    }
 
     const total = Number(formTotalFee);
     const paid = Number(formAmountPaid);
+
+    if (total <= 0) {
+      alert("Please enter a valid total fee.");
+      return;
+    }
+
+    if (paid <= 0) {
+      alert("Please enter a valid payment amount.");
+      return;
+    }
+
+    if (paid > total) {
+      alert(
+        "Amount paid cannot be greater than the total fee."
+      );
+      return;
+    }
+
     const calculatedBalance = total - paid;
-    const computedStatus = calculatedBalance <= 0 ? "Paid" : "Part Payment";
+
+    const computedStatus =
+      calculatedBalance <= 0
+        ? "Paid"
+        : "Part Payment";
 
     try {
-        const res = await fetch("/api/payments", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                studentId: selectedStudent._id,
-                totalFee: total,
-                amountPaid: paid,
-                balance: calculatedBalance,
-                status: computedStatus,
-                paymentMethod: formPaymentMethod,
-                session: session,
-                term: term,
-            }),
-        });
+      setUpdating(true);
 
-        if (res.ok) {
-            alert(`Payment log recorded cleanly for ${selectedStudent.fullName}!`);
-            setSelectedStudent(null);
-            setFormTotalFee("");
-            setFormAmountPaid("");
-            setActiveTab("view");
-        } else {
-            alert("Failed to record new payment record.");
-        }
+      const response = await fetch("/api/payments", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          studentId: selectedStudent._id,
+          totalFee: total,
+          amountPaid: paid,
+          balance: calculatedBalance,
+          status: computedStatus,
+          paymentMethod: formPaymentMethod,
+          session,
+          term,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        alert(
+          data.message ||
+            "Failed to record payment."
+        );
+        return;
+      }
+
+      alert(
+        `Payment recorded successfully for ${selectedStudent.fullName}.`
+      );
+
+      setSelectedStudent(null);
+      setFormTotalFee("");
+      setFormAmountPaid("");
+      setFormPaymentMethod("Cash");
+
+      await fetchPayments();
+
+      setActiveTab("view");
+
+      router.refresh();
     } catch (error) {
-        console.error(error);
-    }
-};
+      console.error(
+        "ADD PAYMENT ERROR:",
+        error
+      );
 
-const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this payment receipt?")) return;
+      alert(
+        "An error occurred while recording the payment."
+      );
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  // =========================
+  // DELETE PAYMENT
+  // =========================
+
+  const handleDelete = async (id: string) => {
+    const confirmed = window.confirm(
+      "Are you sure you want to delete this payment record?"
+    );
+
+    if (!confirmed) return;
+
     try {
-        const res = await fetch(`/api/payment/${id}`, {
-            method: "DELETE",
-        });
-
-        if (res.ok) {
-            alert("payment record deleted successfully!");
-            window.location.reload();
-        } else {
-            const data = await res.json();
-            alert (`Failed to delete: ${data.error || "Unknown error"}`);
+      const response = await fetch(
+        `/api/payment/${id}`,
+        {
+          method: "DELETE",
         }
-    } catch (error) {
-        console.error("Error deleting payment receipt:", error);
-        alert("An error occurred while deleting the payment.");
-    }
-}
+      );
 
+      const data = await response.json();
+
+      if (!response.ok) {
+        alert(
+          data.message ||
+            data.error ||
+            "Failed to delete payment."
+        );
+        return;
+      }
+
+      alert(
+        "Payment record deleted successfully."
+      );
+
+      await fetchPayments();
+    } catch (error) {
+      console.error(
+        "DELETE PAYMENT ERROR:",
+        error
+      );
+
+      alert(
+        "An error occurred while deleting the payment."
+      );
+    }
+  };
+
+  // =========================
+  // LOADING
+  // =========================
+
+  if (loading && activeTab === "view") {
     return (
-        <div className="p-2">
-            {/* HEADER SECTION */}
-            <div className="flex flex-cols md:flex-row justify-between items-start md:items-center border-b pb-4 mb-6 gap-4">
-                <div>
-            <h1 className="text-3xl font-bold text-black mb-6">Payments</h1>
-            <div className="inline-flex items-center gap-2 bg-slate-900 text-white text-xs font-bold px-4 py-2 rounded-full shadow-md mt-1 border border-slate-800">
-                <span className="text-blue-400 font-extrabold uppercase tracking-wider text-10px]">Active Selection</span>
-                <span className="bg-slate-800 px-2 py-0.5 rounded text-white">{session}</span>
-                <span className="text-slate-600">|</span>
-                <span className="text-yellow-400">{term}</span>
-            </div>
-            </div>
+      <div className="flex min-h-[400px] items-center justify-center">
+        <div className="text-center">
+          <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-4 border-gray-200 border-t-blue-600" />
 
-            <div className="flex flex-wrap gap-3 items-cente">
-                <select
-                value={session}
-                onChange={(e) => setSession(e.target.value)}
-                className="border border-gray-300 rounded px-3 py-1.5 text-sm font-medium text-black bg-white shadow-sm focus:outline-none"
-                >
-                    {Array.from({ length: 4}, (_, index) => {
-                        const startYear = new Date().getFullYear() - 2 + index;
-                        const endYear = startYear + 1;
-                        const sessionString = `${startYear}/${endYear}`;
-                        return (
-                            <option key={sessionString} value={sessionString}>
-                                {sessionString}
-                            </option>
-                        );
-                    })}
-                </select>
+          <p className="text-gray-600">
+            Loading payment records...
+          </p>
+        </div>
+      </div>
+    );
+  }
 
-                <select
-                value={term}
-                onChange={(e) => setTerm(e.target.value)}
-                className="border border-gray-300 rounded px-3 py-1.5 text-sm text-black bg-white shadow-sm focus:outline-none"
-                >
-                    <option value="First Term" className="text-black bg-white">First Term</option>
-                    <option value="Second Term" className="text-black bg-white">Second Term</option>
-                    <option value="Third Term" className="text-black bg-white">Third Term</option>
-                </select>
+  return (
+    <div className="space-y-6">
 
-                <div className="flex gap-2 bg-gray-100 p-1 rounded-lg border">
-                    <button
-                    onClick={() => setActiveTab("view")}
-                    className={`px-4 py-1.5 text-sm font-semibold rounded-md transition ${
-                        activeTab === "view" ? "bg-white text-blue-600 shadow-sm" : "text-gray-600"
-                    }`}
-                    >
-                        View
-                    </button>
+      {/* HEADER */}
 
-                    <button
-                    onClick={() =>setActiveTab("add")}
-                    className={`px-4 py-1.5 text-sm font-semibold rounded-md transition ${
-                        activeTab === "add" ? "bg-white text-blue=600 shadow-sm" : "text-gray-600"
-                    }`}
-                    >
-                        + Add New
-                    </button>
-                </div>
-                </div>
-                </div>
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
 
-                { activeTab === "view" && (
-                    <div className="bg-white rounded-xl shadow-md border overflow-hidden">
-                {loading ? (
-                    <p className="p-5 text-black">Loading...</p>
-                ) : payments.length === 0 ? (
-                    <p className="p-5 text-black">No payments found</p>
-                ) : (
-                    <div className="overflow-x-auto">
-                    <table className="w-full">
-                        <thead className="bg-gray-100">
-                            <tr>
-                                <th className="p-4 text-left text-black">Student</th>
-                                    <th className="p-4 text-left text-black">Class</th>
-                                    <th className="p-4 text-left text-black">Total Fee</th>
-                                    <th className="p-4 text-left text-black">Paid</th>
-                                    <th className="p-4 text-left text-black">Balance</th>
-                                    <th className="p-4 text-left text-black">Action</th>
-                                    <th className="p-4 text-left text-black">Status</th>
-                                    <th className="p-4 text-left text-black">Method</th>
-                                    <th className="p-4 text-left text-black">Session</th>
-                                    <th className="p-4 text-left text-black">Term</th>
-                                    <th className="p-4 text-left text-black">Receipt proof</th>
-                            </tr>
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">
+            Payments
+          </h1>
 
-                        </thead>
+          <p className="mt-1 text-sm text-gray-500">
+            Manage student fees, payment records,
+            balances and receipts.
+          </p>
+        </div>
 
-                        <tbody>
-                            {payments.map((p) => (
-                                <tr key={p._id} className="border-t">
-                                    <td className="p-4 text-black">
-                                        {(p.studentId as any)?.fullName || "Unknown Student"}
-                                    </td>
+        <div className="flex flex-wrap items-center gap-3">
 
-                                    <td className="p-4 text-black font-bold text-base tracking-wide">
-                                        {p.studentId?.class}
-                                    </td>
+          <select
+            value={session}
+            onChange={(e) =>
+              setSession(e.target.value)
+            }
+            className="rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+          >
+            {Array.from(
+              { length: 5 },
+              (_, index) => {
+                const startYear =
+                  new Date().getFullYear() -
+                  2 +
+                  index;
 
-                                    <td className="p-4 text-black font-semibold text-base">
-                                        &#8358;{p.totalFee}
-                                    </td>
+                const endYear =
+                  startYear + 1;
 
-                                    <td className="p-4 text-green-700 font-bold text-base">
-                                        &#8358;{p.amountPaid}
-                                    </td>
+                const sessionString =
+                  `${startYear}/${endYear}`;
 
-                                    <td className="p-4 text-red-600 font-bold text-base">
-                                        &#8358;{p.balance}
-                                    </td>
-
-                                    <td className="p-4 text-red-600 font-bold text-base">
-                                        <button
-                                        onClick={() => handleDelete(p._id)}
-                                        className="bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded text-xs font-semibold transition duration-200"
-                                        >
-                                            Delete
-                                        </button>
-                                    </td>
-
-                                    <td className="p-4 text-base">
-                                        <span className={`px-2 py-1 rounded text-xs font-semibold ${
-                                            p.status === "Fully paid" ? "bg-green-100 text-green-800" : "bg-yellow-100 text-yellow-800"
-                                        }`}>
-                                        {p.status}
-                                        </span>
-                                    </td>
-
-                                    <td className="p-4 text-slate-800 font-medium text-base">
-                                        {p.paymentMethod}
-                                    </td>
-
-                                    <td className="p-4 text-black font-bold text-base">
-                                        {p.session}
-                                    </td>
-
-                                    <td className="p-4 text-black font-bold text-base">
-                                    {p.term}
-                                    </td>
-
-                                    <td className="p-4">
-                                        {(p as any).receiptUrl ? (
-                                            <div className="w-12 h-12 rounded border border-gray-200 overflow-hidden bg-gray-50 hover:opacity-80 transition-opacity">
-                                                <a
-                                                 href={(p as any).receiptUrl}
-                                                 target="_blank"
-                                                 rel="noopener noreferrer"
-                                                 className="block w-full h-full"
-                                                 >
-                                                <img
-                                                src={(p as any).receiptUrl}
-                                                alt="Receipt thumb"
-                                                className="w-full h-full object-cover cursor-pointer"
-                                                />
-                                                </a>
-                                            </div>
-                                        ) : (
-                                            <span className="text-gray-400 text-xs italic">No file (cash)</span>
-                                        )}
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                    </div>
-                )}
-            </div>
-                )}
-
-            {activeTab === "add" && (
-                <div className="grid grid-cols-1 md;grid-cols-2 gap-6 items-start">
-                    <div className="bg-white p-4 rounded-xl shadow-md border">
-                        <h3 className="font-semibold mb-3 text-black text-lg">Select Registered Student</h3>
-                        {students.length === 0 ? (
-                            <p className="text-gray-500 text-sm">No registered students available.</p>
-                        ) : (
-                            <ul className="divide-y divide-gray-100 max-h-[420px] overflow-y-auto">
-                                {students.map((student) => (
-                                    <li
-                                     key={student._id}
-                                     onClick={() => setSelectedStudent(student)} 
-                                    className={`py-3 flex justify-between items-center cursor-pointer rounded-lg transition my-1 ${
-                                        selectedStudent?._id === student._id
-                                        ? "bg-blue-50 border border-blue-200"
-                                        : "hover:bg-gray-50 bg-white"
-                                    }`}
-                                    >
-                                        <div>
-                                            <p className="font-medium text-black">{student.fullName}</p>
-                                            <p className="text-xs text-gray-500">Class: {student.class || "Unassigned"}</p>
-                                            </div>
-
-                                        <button
-                                        type="button"
-                                        onClick={() => setSelectedStudent(student)}
-                                        className={`text-xs px-3 py-1.5 rounded-md font-medium transition ${
-                                            selectedStudent?._id === student._id ? "bg-green-600 text-white" : "bg-lue-600 text-white"
-                                        }`}
-                                        >
-                                            {selectedStudent?._id === student._id ? "Selected" : "Collected"}
-                                        </button>
-                                    </li>
-                                ))}
-                            </ul>
-                        )}
-                    </div>
-
-                    <div className="bg-white p-6 rounded-xl shadow-md border">
-                        {selectedStudent ? (
-                            <form onSubmit={handleAddNewPayment} className="space-y-4">
-                                <h3 className="font-semibold text-lg text-black border-b pb-2">
-                                    Recording Bill for: <span className="text-blue-600">{selectedStudent.fullName}</span>
-                                </h3>
-
-                                <div className="p-3 bg-blue-50 text-blue-800 text-xs font-medium rounded-md">
-                                    Applying transaction to: <strong>{session} ({term})</strong>
-                                </div>
-
-                                <div>
-                                    <label className="block text-xs font-medium text-black mb-1">Total Expected Fee (&#8358;)</label>
-                                    <input
-                                    type="number"
-                                    required
-                                    placeholder="0"
-                                    value={formTotalFee}
-                                    onChange={(e) => setFormTotalFee(e.target.value)}
-                                    className="w-full border rounded px-3 py-2 text-sm text-black focus:outline-blue-500"
-                                    />
-                                </div>
-
-                                <div>
-                                    <label className="block text-xs font-medium text-black mb-1">Amount Paid (&#8358;)</label>
-                                    <input
-                                    type="number"
-                                    required
-                                    placeholder="0"
-                                    value={formAmountPaid}
-                                    onChange={(e) => setFormAmountPaid(e.target.value)}
-                                    className="w-full border rounded px-3 py-2 text-sm text-black focus:outline-blue-500"
-                                    />
-                                </div>
-
-                                <div>
-                                    <label className="block text-xs font-medium text-blue mb-1 text-black">
-                                        Payment Method
-                                    </label>
-                                    <select
-                                    value={formPaymentMethod}
-                                    onChange={(e) => setFormPaymentMethod(e.target.value)}
-                                    className="w-full border rounded px-3 py-2 text-sm text-black focus:outline-blue-500"
-                                    >
-                                        <option value="Cash">Cash</option>
-                                        <option value="Bank Transfer">Bank Transfer</option>
-                                        <option value="POS">POS</option>
-                                    </select>
-                                </div>
-
-                                <button
-                                type="submit"
-                                className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-2.5 rounded-md text-sm transition"
-                                >
-                                    Save Payment & View History
-                                </button>
-                            </form>
-                        ) : (
-                            <div className="text-center py-20 text-gray-400">
-                                <p className="text-sm">Please Select a student from the action list to populate the collection form layout.</p>
-                                </div>
-                        )}
-                    </div>
-                </div>
+                return (
+                  <option
+                    key={sessionString}
+                    value={sessionString}
+                  >
+                    {sessionString}
+                  </option>
+                );
+              }
             )}
+          </select>
+
+          <select
+            value={term}
+            onChange={(e) =>
+              setTerm(e.target.value)
+            }
+            className="rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+          >
+            <option value="First Term">
+              First Term
+            </option>
+
+            <option value="Second Term">
+              Second Term
+            </option>
+
+            <option value="Third Term">
+              Third Term
+            </option>
+          </select>
+
+        </div>
+      </div>
+
+      {/* SUMMARY CARDS */}
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+
+        <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+          <p className="text-sm font-medium text-gray-500">
+            Expected Fees
+          </p>
+
+          <p className="mt-2 text-2xl font-bold text-gray-900">
+            {money(summary.totalFee)}
+          </p>
+
+          <p className="mt-1 text-xs text-gray-500">
+            {filteredPayments.length} payment record
+            {filteredPayments.length !== 1
+              ? "s"
+              : ""}
+          </p>
+        </div>
+
+        <div className="rounded-2xl border border-green-100 bg-green-50 p-5 shadow-sm">
+          <p className="text-sm font-medium text-green-700">
+            Amount Collected
+          </p>
+
+          <p className="mt-2 text-2xl font-bold text-green-800">
+            {money(summary.amountPaid)}
+          </p>
+
+          <p className="mt-1 text-xs text-green-700">
+            {summary.paidCount} fully paid
+          </p>
+        </div>
+
+        <div className="rounded-2xl border border-orange-100 bg-orange-50 p-5 shadow-sm">
+          <p className="text-sm font-medium text-orange-700">
+            Outstanding
+          </p>
+
+          <p className="mt-2 text-2xl font-bold text-orange-800">
+            {money(summary.balance)}
+          </p>
+
+          <p className="mt-1 text-xs text-orange-700">
+            {summary.partPaymentCount} part payment
+            {summary.partPaymentCount !== 1
+              ? "s"
+              : ""}
+          </p>
+        </div>
+
+        <div className="rounded-2xl border border-blue-100 bg-blue-50 p-5 shadow-sm">
+          <p className="text-sm font-medium text-blue-700">
+            Current Selection
+          </p>
+
+          <p className="mt-2 text-lg font-bold text-blue-900">
+            {session}
+          </p>
+
+          <p className="mt-1 text-xs text-blue-700">
+            {term}
+          </p>
+        </div>
+
+      </div>
+
+      {/* TABS + SEARCH */}
+
+      <div className="flex flex-col gap-4 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm lg:flex-row lg:items-center lg:justify-between">
+
+        <div className="flex w-fit rounded-xl bg-gray-100 p-1">
+
+          <button
+            type="button"
+            onClick={() =>
+              setActiveTab("view")
+            }
+            className={`rounded-lg px-5 py-2.5 text-sm font-semibold transition ${
+              activeTab === "view"
+                ? "bg-white text-blue-600 shadow-sm"
+                : "text-gray-500 hover:text-gray-800"
+            }`}
+          >
+            Payment History
+          </button>
+
+          <button
+            type="button"
+            onClick={() =>
+              setActiveTab("add")
+            }
+            className={`rounded-lg px-5 py-2.5 text-sm font-semibold transition ${
+              activeTab === "add"
+                ? "bg-blue-600 text-white shadow-sm"
+                : "text-gray-500 hover:text-gray-800"
+            }`}
+          >
+            + Record Payment
+          </button>
+
+        </div>
+
+        {activeTab === "view" && (
+          <div className="w-full lg:max-w-sm">
+
+            <input
+              type="text"
+              value={search}
+              onChange={(e) =>
+                setSearch(e.target.value)
+              }
+              placeholder="Search student, class or method..."
+              className="w-full rounded-xl border border-gray-300 px-4 py-2.5 text-sm text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+            />
+
+          </div>
+        )}
+
+      </div>
+
+      {/* PAYMENT HISTORY */}
+
+      {activeTab === "view" && (
+        <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+
+          {filteredPayments.length === 0 ? (
+            <div className="px-6 py-16 text-center">
+
+              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-gray-100 text-2xl">
+                ₦
+              </div>
+
+              <h3 className="text-lg font-semibold text-gray-900">
+                No payment records found
+              </h3>
+
+              <p className="mt-1 text-sm text-gray-500">
+                No payments match the selected
+                session, term or search.
+              </p>
+
             </div>
-);
+          ) : (
+            <div className="overflow-x-auto">
+
+              <table className="w-full min-w-[1000px]">
+
+                <thead className="bg-gray-50">
+
+                  <tr className="border-b border-gray-200">
+
+                    <th className="px-5 py-4 text-left text-xs font-bold uppercase tracking-wide text-gray-500">
+                      Student
+                    </th>
+
+                    <th className="px-5 py-4 text-left text-xs font-bold uppercase tracking-wide text-gray-500">
+                      Fee
+                    </th>
+
+                    <th className="px-5 py-4 text-left text-xs font-bold uppercase tracking-wide text-gray-500">
+                      Paid
+                    </th>
+
+                    <th className="px-5 py-4 text-left text-xs font-bold uppercase tracking-wide text-gray-500">
+                      Balance
+                    </th>
+
+                    <th className="px-5 py-4 text-left text-xs font-bold uppercase tracking-wide text-gray-500">
+                      Status
+                    </th>
+
+                    <th className="px-5 py-4 text-left text-xs font-bold uppercase tracking-wide text-gray-500">
+                      Method
+                    </th>
+
+                    <th className="px-5 py-4 text-left text-xs font-bold uppercase tracking-wide text-gray-500">
+                      Receipt
+                    </th>
+
+                    <th className="px-5 py-4 text-right text-xs font-bold uppercase tracking-wide text-gray-500">
+                      Action
+                    </th>
+
+                  </tr>
+
+                </thead>
+
+                <tbody className="divide-y divide-gray-100">
+
+                  {filteredPayments.map(
+                    (payment) => {
+
+                      const studentName =
+                        payment.studentId
+                          ?.fullName ||
+                        payment.studentId
+                          ?.name ||
+                        "Unknown Student";
+
+                      const studentClass =
+                        payment.studentId
+                          ?.class ||
+                        "Unassigned";
+
+                      const isPaid =
+                        payment.status ===
+                          "Paid" ||
+                        payment.status ===
+                          "Fully paid";
+
+                      return (
+                        <tr
+                          key={payment._id}
+                          className="transition hover:bg-gray-50"
+                        >
+
+                          <td className="px-5 py-4">
+
+                            <div className="flex items-center gap-3">
+
+                              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-100 text-sm font-bold text-blue-700">
+                                {studentName
+                                  .charAt(0)
+                                  .toUpperCase()}
+                              </div>
+
+                              <div>
+                                <p className="font-semibold text-gray-900">
+                                  {studentName}
+                                </p>
+
+                                <p className="text-xs text-gray-500">
+                                  {studentClass}
+                                </p>
+                              </div>
+
+                            </div>
+
+                          </td>
+
+                          <td className="px-5 py-4 font-semibold text-gray-900">
+                            {money(
+                              payment.totalFee
+                            )}
+                          </td>
+
+                          <td className="px-5 py-4 font-semibold text-green-700">
+                            {money(
+                              payment.amountPaid
+                            )}
+                          </td>
+
+                          <td className="px-5 py-4 font-semibold text-red-600">
+                            {money(
+                              payment.balance
+                            )}
+                          </td>
+
+                          <td className="px-5 py-4">
+
+                            <span
+                              className={`inline-flex rounded-full px-3 py-1 text-xs font-bold ${
+                                isPaid
+                                  ? "bg-green-100 text-green-700"
+                                  : "bg-orange-100 text-orange-700"
+                              }`}
+                            >
+                              {payment.status}
+                            </span>
+
+                          </td>
+
+                          <td className="px-5 py-4 text-sm font-medium text-gray-700">
+                            {payment.paymentMethod}
+                          </td>
+
+                          <td className="px-5 py-4">
+
+                            {payment.receiptUrl ? (
+                              <a
+                                href={
+                                  payment.receiptUrl
+                                }
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center rounded-lg bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-700 transition hover:bg-blue-100"
+                              >
+                                View Receipt
+                              </a>
+                            ) : (
+                              <span className="text-xs italic text-gray-400">
+                                No receipt
+                              </span>
+                            )}
+
+                          </td>
+
+                          <td className="px-5 py-4 text-right">
+
+                            <button
+                              type="button"
+                              onClick={() =>
+                                handleDelete(
+                                  payment._id
+                                )
+                              }
+                              className="rounded-lg px-3 py-2 text-xs font-semibold text-red-600 transition hover:bg-red-50"
+                            >
+                              Delete
+                            </button>
+
+                          </td>
+
+                        </tr>
+                      );
+                    }
+                  )}
+
+                </tbody>
+
+              </table>
+
+            </div>
+          )}
+
+        </div>
+      )}
+
+      {/* RECORD PAYMENT */}
+
+      {activeTab === "add" && (
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1fr_1.2fr]">
+
+          {/* STUDENT LIST */}
+
+          <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+
+            <div className="mb-5">
+              <h2 className="text-lg font-bold text-gray-900">
+                Select Student
+              </h2>
+
+              <p className="mt-1 text-sm text-gray-500">
+                Choose a registered student to
+                record a payment.
+              </p>
+            </div>
+
+            {studentsLoading ? (
+              <div className="py-10 text-center text-sm text-gray-500">
+                Loading students...
+              </div>
+            ) : students.length === 0 ? (
+              <div className="rounded-xl bg-gray-50 p-6 text-center">
+                <p className="text-sm text-gray-500">
+                  No registered students available.
+                </p>
+              </div>
+            ) : (
+              <div className="max-h-[500px] space-y-2 overflow-y-auto pr-1">
+
+                {students.map((student) => {
+
+                  const selected =
+                    selectedStudent?._id ===
+                    student._id;
+
+                  return (
+                    <button
+                      type="button"
+                      key={student._id}
+                      onClick={() =>
+                        setSelectedStudent(
+                          student
+                        )
+                      }
+                      className={`flex w-full items-center justify-between rounded-xl border p-4 text-left transition ${
+                        selected
+                          ? "border-blue-300 bg-blue-50"
+                          : "border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50"
+                      }`}
+                    >
+
+                      <div className="flex items-center gap-3">
+
+                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 font-bold text-gray-700">
+                          {student.fullName
+                            .charAt(0)
+                            .toUpperCase()}
+                        </div>
+
+                        <div>
+                          <p className="font-semibold text-gray-900">
+                            {student.fullName}
+                          </p>
+
+                          <p className="text-xs text-gray-500">
+                            {student.class ||
+                              "Unassigned"}
+                          </p>
+                        </div>
+
+                      </div>
+
+                      <span
+                        className={`rounded-lg px-3 py-1.5 text-xs font-semibold ${
+                          selected
+                            ? "bg-blue-600 text-white"
+                            : "bg-gray-100 text-gray-600"
+                        }`}
+                      >
+                        {selected
+                          ? "Selected"
+                          : "Select"}
+                      </span>
+
+                    </button>
+                  );
+                })}
+
+              </div>
+            )}
+
+          </div>
+
+          {/* PAYMENT FORM */}
+
+          <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+
+            {selectedStudent ? (
+              <form
+                onSubmit={
+                  handleAddNewPayment
+                }
+                className="space-y-6"
+              >
+
+                <div className="border-b border-gray-200 pb-5">
+
+                  <p className="text-sm font-medium text-gray-500">
+                    Recording payment for
+                  </p>
+
+                  <h2 className="mt-1 text-2xl font-bold text-gray-900">
+                    {selectedStudent.fullName}
+                  </h2>
+
+                  <p className="mt-1 text-sm text-gray-500">
+                    {selectedStudent.class ||
+                      "Class not assigned"}
+                  </p>
+
+                </div>
+
+                <div className="rounded-xl bg-blue-50 p-4">
+
+                  <p className="text-xs font-medium text-blue-600">
+                    Payment period
+                  </p>
+
+                  <p className="mt-1 font-bold text-blue-900">
+                    {session} · {term}
+                  </p>
+
+                </div>
+
+                {/* TOTAL FEE */}
+
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-gray-700">
+                    Total Expected Fee
+                  </label>
+
+                  <div className="relative">
+
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 font-semibold text-gray-500">
+                      ₦
+                    </span>
+
+                    <input
+                      type="number"
+                      min="1"
+                      required
+                      value={formTotalFee}
+                      onChange={(e) =>
+                        setFormTotalFee(
+                          e.target.value
+                        )
+                      }
+                      placeholder="80000"
+                      className="w-full rounded-xl border border-gray-300 py-3 pl-9 pr-4 text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                    />
+
+                  </div>
+                </div>
+
+                {/* AMOUNT PAID */}
+
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-gray-700">
+                    Amount Paid
+                  </label>
+
+                  <div className="relative">
+
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 font-semibold text-gray-500">
+                      ₦
+                    </span>
+
+                    <input
+                      type="number"
+                      min="1"
+                      required
+                      value={formAmountPaid}
+                      onChange={(e) =>
+                        setFormAmountPaid(
+                          e.target.value
+                        )
+                      }
+                      placeholder="50000"
+                      className="w-full rounded-xl border border-gray-300 py-3 pl-9 pr-4 text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                    />
+
+                  </div>
+                </div>
+
+                {/* LIVE BALANCE */}
+
+                {formTotalFee &&
+                  formAmountPaid && (
+                    <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
+
+                      <div className="flex items-center justify-between">
+
+                        <span className="text-sm font-medium text-gray-600">
+                          Remaining Balance
+                        </span>
+
+                        <span className="text-lg font-bold text-red-600">
+                          {money(
+                            Math.max(
+                              0,
+                              Number(
+                                formTotalFee
+                              ) -
+                                Number(
+                                  formAmountPaid
+                                )
+                            )
+                          )}
+                        </span>
+
+                      </div>
+
+                    </div>
+                  )}
+
+                {/* PAYMENT METHOD */}
+
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-gray-700">
+                    Payment Method
+                  </label>
+
+                  <select
+                    value={
+                      formPaymentMethod
+                    }
+                    onChange={(e) =>
+                      setFormPaymentMethod(
+                        e.target.value
+                      )
+                    }
+                    className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                  >
+                    <option value="Cash">
+                      Cash
+                    </option>
+
+                    <option value="Bank Transfer">
+                      Bank Transfer
+                    </option>
+
+                    <option value="POS">
+                      POS
+                    </option>
+                  </select>
+                </div>
+
+                {/* BUTTONS */}
+
+                <div className="flex flex-col gap-3 pt-2 sm:flex-row">
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setSelectedStudent(
+                        null
+                      )
+                    }
+                    disabled={updating}
+                    className="rounded-xl border border-gray-300 px-6 py-3 font-semibold text-gray-700 transition hover:bg-gray-50 disabled:opacity-50"
+                  >
+                    Change Student
+                  </button>
+
+                  <button
+                    type="submit"
+                    disabled={updating}
+                    className="flex-1 rounded-xl bg-blue-600 px-6 py-3 font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {updating
+                      ? "Saving Payment..."
+                      : "Save Payment"}
+                  </button>
+
+                </div>
+
+              </form>
+            ) : (
+              <div className="flex min-h-[450px] items-center justify-center">
+
+                <div className="max-w-sm text-center">
+
+                  <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-50 text-2xl text-blue-600">
+                    ₦
+                  </div>
+
+                  <h2 className="text-xl font-bold text-gray-900">
+                    Select a Student
+                  </h2>
+
+                  <p className="mt-2 text-sm leading-6 text-gray-500">
+                    Choose a student from the list
+                    to begin recording their payment.
+                  </p>
+
+                </div>
+
+              </div>
+            )}
+
+          </div>
+
+        </div>
+      )}
+
+    </div>
+  );
 }

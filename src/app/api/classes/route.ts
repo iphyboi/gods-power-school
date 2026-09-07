@@ -2,50 +2,64 @@ import { NextResponse } from "next/server";
 import connectDB from "@/lib/db";
 import SchoolClass from "@/models/SchoolClass";
 
-export async function GET() {
+export async function GET(req: Request) {
     try {
         await connectDB();
 
-        // CLEAR OLD DATA
-        await SchoolClass.deleteMany();
+        const { searchParams } = new URL(req.url);
+        const seed = searchParams.get("seed");
 
-        //INSERT CLASSES
-        await SchoolClass.insertMany([
-            {
-                name: "JSS1",
-                fee: 80000,
-            },
+        // Seed classes when ?seed=true is used
+        if (seed === "true") {
+            await SchoolClass.deleteMany({});
 
-            {
-                name: "JSS2",
-                fee: 85000,
-            },
+            await SchoolClass.insertMany([
+                {
+                    name: "JSS1",
+                    fee: 80000,
+                },
+                {
+                    name: "JSS2",
+                    fee: 85000,
+                },
+                {
+                    name: "JSS3",
+                    fee: 90000,
+                },
+                {
+                    name: "SS1",
+                    fee: 120000,
+                },
+                {
+                    name: "SS2",
+                    fee: 130000,
+                },
+                {
+                    name: "SS3",
+                    fee: 140000,
+                },
+            ]);
 
-            {
-                name: "SS1",
-                fee: 120000,
-            },
+            return NextResponse.json({
+                message: "Classes seeded successfully",
+            });
+        }
 
-            {
-                name: "SS2",
-                fee: 130000,
-            },
-
-            {
-                name: "SS3",
-                fee: 140000,
-            },
-        ]);
+        // Normal GET request — fetch classes
+        const classes = await SchoolClass.find({})
+            .sort({ name: 1 })
+            .lean();
 
         return NextResponse.json({
-            message: "Classes seeded successfully",
+            classes,
         });
+
     } catch (error) {
-        console.log("SEED ERROR:", error);
+        console.log("GET CLASSES ERROR:", error);
 
         return NextResponse.json(
             {
-                message: "Failed to seed classes",
+                message: "Failed to fetch classes",
             },
             {
                 status: 500,
